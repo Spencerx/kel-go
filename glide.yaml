@@ -1,0 +1,4 @@
+package: .
+import:
+- package: github.com/derekdowling/go-json-spec-handler
+- package: golang.org/x/oauth2
