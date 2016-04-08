@@ -40,10 +40,11 @@ type DeleteRequest interface {
 }
 
 type createRequest struct {
-	client *Client
-	path   string
-	object Object
-	hdr    http.Header
+	client   *Client
+	path     string
+	buildDoc func(*http.Request) (*jsh.Document, error)
+	hdr      http.Header
+	handler  func(*jsh.Document) error
 }
 
 func (req *createRequest) Do() error {
@@ -51,14 +52,10 @@ func (req *createRequest) Do() error {
 	if err != nil {
 		return err
 	}
-	obj, objErr := jsh.NewObject(req.object.GetID(), req.object.GetResourceType(), req.object)
-	if objErr != nil {
-		return objErr
+	doc, err := req.buildDoc(outreq)
+	if err != nil {
+		return err
 	}
-	if err := obj.Validate(outreq, false); err != nil {
-		return fmt.Errorf("error preparing object: %s", err.Error())
-	}
-	doc := jsh.Build(obj)
 	docSerialized, err := json.MarshalIndent(doc, "", " ")
 	if err != nil {
 		return fmt.Errorf("error serializing document: %s", err.Error())
@@ -81,9 +78,8 @@ func (req *createRequest) Do() error {
 	doc.Status = res.StatusCode
 	switch res.StatusCode {
 	case http.StatusCreated:
-		obj = doc.Data[0]
-		if objErr := obj.Unmarshal(req.object.GetResourceType(), req.object); objErr != nil {
-			return objErr
+		if err := req.handler(doc); err != nil {
+			return err
 		}
 		return nil
 	case http.StatusBadRequest:
@@ -96,8 +92,8 @@ func (req *createRequest) Do() error {
 type listRequest struct {
 	client  *Client
 	path    string
-	handler func(obj *jsh.Document) error
 	hdr     http.Header
+	handler func(*jsh.Document) error
 }
 
 // Include ...
@@ -141,8 +137,8 @@ func (req *listRequest) Do() error {
 type getRequest struct {
 	client  *Client
 	path    string
-	handler func(obj *jsh.Document) error
 	hdr     http.Header
+	handler func(*jsh.Document) error
 }
 
 // Include ...
@@ -186,10 +182,11 @@ func (req *getRequest) Do() error {
 }
 
 type updateRequest struct {
-	client *Client
-	path   string
-	object Object
-	hdr    http.Header
+	client   *Client
+	path     string
+	buildDoc func(*http.Request) (*jsh.Document, error)
+	hdr      http.Header
+	handler  func(*jsh.Document) error
 }
 
 func (req *updateRequest) Do() error {
@@ -197,14 +194,10 @@ func (req *updateRequest) Do() error {
 	if err != nil {
 		return err
 	}
-	obj, objErr := jsh.NewObject(req.object.GetID(), req.object.GetResourceType(), req.object)
-	if objErr != nil {
-		return objErr
+	doc, err := req.buildDoc(outreq)
+	if err != nil {
+		return err
 	}
-	if err := obj.Validate(outreq, false); err != nil {
-		return fmt.Errorf("error preparing object: %s", err.Error())
-	}
-	doc := jsh.Build(obj)
 	docSerialized, err := json.MarshalIndent(doc, "", " ")
 	if err != nil {
 		return fmt.Errorf("error serializing document: %s", err.Error())
@@ -227,9 +220,8 @@ func (req *updateRequest) Do() error {
 	doc.Status = res.StatusCode
 	switch res.StatusCode {
 	case http.StatusOK:
-		obj = doc.Data[0]
-		if objErr := obj.Unmarshal(req.object.GetResourceType(), req.object); objErr != nil {
-			return objErr
+		if err := req.handler(doc); err != nil {
+			return err
 		}
 		return nil
 	case http.StatusBadRequest:

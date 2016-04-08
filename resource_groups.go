@@ -25,9 +25,17 @@ func (srv *ResourceGroupService) getDetailPath(id string) string {
 // Create sends an HTTP request to create the Kel resource group.
 func (srv *ResourceGroupService) Create(resourceGroup *ResourceGroup) CreateRequest {
 	return &createRequest{
-		client: srv.client,
-		path:   apiPath,
-		object: resourceGroup,
+		client:   srv.client,
+		path:     apiPath,
+		buildDoc: buildDoc(resourceGroup),
+		handler: func(document *jsh.Document) error {
+			obj := document.Data[0]
+			if objErr := obj.Unmarshal(resourceType, resourceGroup); objErr != nil {
+				return objErr
+			}
+			resourceGroup.srv = srv
+			return nil
+		},
 	}
 }
 
@@ -35,10 +43,18 @@ func (srv *ResourceGroupService) Create(resourceGroup *ResourceGroup) CreateRequ
 // providing the given token.
 func (srv *ResourceGroupService) CreateWithToken(resourceGroup *ResourceGroup, token string) CreateRequest {
 	req := &createRequest{
-		client: srv.client,
-		path:   apiPath,
-		hdr:    make(http.Header),
-		object: resourceGroup,
+		client:   srv.client,
+		path:     apiPath,
+		hdr:      make(http.Header),
+		buildDoc: buildDoc(resourceGroup),
+		handler: func(document *jsh.Document) error {
+			obj := document.Data[0]
+			if objErr := obj.Unmarshal(resourceType, resourceGroup); objErr != nil {
+				return objErr
+			}
+			resourceGroup.srv = srv
+			return nil
+		},
 	}
 	req.hdr.Set("X-Kel-Token", token)
 	return req
@@ -56,7 +72,6 @@ func (srv *ResourceGroupService) List(resourceGroups *[]*ResourceGroup) ListRequ
 				if objErr := obj.Unmarshal(resourceGroup.GetResourceType(), resourceGroup); objErr != nil {
 					return objErr
 				}
-				resourceGroup.srv = srv
 				*resourceGroups = append(*resourceGroups, resourceGroup)
 			}
 			return nil
@@ -71,7 +86,7 @@ func (srv *ResourceGroupService) Get(name string, resourceGroup *ResourceGroup) 
 		path:   srv.getDetailPath(name),
 		handler: func(document *jsh.Document) error {
 			obj := document.Data[0]
-			if objErr := obj.Unmarshal(resourceGroup.GetResourceType(), resourceGroup); objErr != nil {
+			if objErr := obj.Unmarshal(resourceType, resourceGroup); objErr != nil {
 				return objErr
 			}
 			resourceGroup.srv = srv
@@ -103,9 +118,16 @@ func (resourceGroup *ResourceGroup) Reload() error {
 // Save will persistent local data with the API.
 func (resourceGroup *ResourceGroup) Save() error {
 	req := &updateRequest{
-		client: resourceGroup.srv.client,
-		path:   resourceGroup.srv.getDetailPath(resourceGroup.GetID()),
-		object: resourceGroup,
+		client:   resourceGroup.srv.client,
+		path:     resourceGroup.srv.getDetailPath(resourceGroup.GetID()),
+		buildDoc: buildDoc(resourceGroup),
+		handler: func(document *jsh.Document) error {
+			obj := document.Data[0]
+			if objErr := obj.Unmarshal(resourceType, resourceGroup); objErr != nil {
+				return objErr
+			}
+			return nil
+		},
 	}
 	return req.Do()
 }
@@ -117,4 +139,18 @@ func (resourceGroup *ResourceGroup) Delete() error {
 		path:   resourceGroup.srv.getDetailPath(resourceGroup.GetID()),
 	}
 	return req.Do()
+}
+
+func buildDoc(resourceGroup *ResourceGroup) func(outreq *http.Request) (*jsh.Document, error) {
+	return func(outreq *http.Request) (*jsh.Document, error) {
+		obj, objErr := jsh.NewObject(resourceGroup.GetID(), resourceType, resourceGroup)
+		if objErr != nil {
+			return nil, objErr
+		}
+		if err := obj.Validate(outreq, false); err != nil {
+			return nil, fmt.Errorf("error preparing object: %s", err.Error())
+		}
+		doc := jsh.Build(obj)
+		return doc, nil
+	}
 }
