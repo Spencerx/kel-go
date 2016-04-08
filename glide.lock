@@ -1,10 +1,83 @@
-hash: c58b22175c9ea7cfd3a355284308f0a6b63f08e46b1e701405688d08e5f315d5
-updated: 2016-04-04T12:26:19.88187487-06:00
+hash: c7b168f56894550c88a73c8b2172d3f88b16ed515702e2bd9ead6a316a9aedfc
+updated: 2016-04-07T20:15:56.755544384-06:00
 imports:
+- name: camlistore.org
+  version: a2c19c1f425c9266dc0ba23dd2c5c672d577e8da
+  subpackages:
+  - pkg/googlestorage
+  - pkg/blob
+  - depcheck
+  - pkg/constants
 - name: github.com/asaskevich/govalidator
   version: edd46cdac249b001c7b7d88c6d43993ea875e8d8
 - name: github.com/brosner/go-json-spec-handler
-  version: 42cfc7303845e854b8f97b3556b79ddf3955df14
+  version: 51b90d2573b8e3036fe76f1659efc90ed4e3345b
+- name: github.com/golang/protobuf
+  version: dda510ac0fd43b39770f22ac6260eb91d377bce3
+  subpackages:
+  - proto
+- name: go4.org
+  version: 03efcb870d84809319ea509714dd6d19a1498483
+  subpackages:
+  - syncutil/singleflight
+  - readerutil
+- name: golang.org/x/crypto
+  version: b8a0f4bb4040f8d884435cff35b9691e362cf00c
+  subpackages:
+  - ssh/terminal
+- name: golang.org/x/net
+  version: 28273ec927bee3bea305f112fc28ceee575ea893
+  subpackages:
+  - context
+  - context/ctxhttp
 - name: golang.org/x/oauth2
   version: 33fa30fe45020622640e947917fd1fc4c81e3dce
+  subpackages:
+  - google
+  - internal
+  - jws
+  - jwt
+- name: golang.org/x/text
+  version: 5ee49cfe751141f8017047bab800d1f528ee3be1
+  subpackages:
+  - encoding
+  - encoding/charmap
+  - encoding/htmlindex
+  - transform
+  - encoding/internal
+  - encoding/internal/identifier
+  - encoding/japanese
+  - encoding/korean
+  - encoding/simplifiedchinese
+  - encoding/traditionalchinese
+  - encoding/unicode
+  - language
+  - internal/utf8internal
+  - runes
+  - internal/tag
+- name: google.golang.org/api
+  version: 6dcd0d8ed711248e845137a35720e88b3ed2e04a
+  subpackages:
+  - compute/v1
+  - storage/v1
+  - gensupport
+  - googleapi
+  - googleapi/internal/uritemplates
+- name: google.golang.org/appengine
+  version: b67c870a16a2d58b3afa024461dcc51805f52e9d
+  subpackages:
+  - urlfetch
+  - internal
+  - internal/urlfetch
+  - internal/app_identity
+  - internal/modules
+  - internal/base
+  - internal/datastore
+  - internal/log
+  - internal/remote_api
+- name: google.golang.org/cloud
+  version: 79ffda073da804f325135da5ff645a630a4d7625
+  subpackages:
+  - compute/metadata
+  - internal
 devImports: []
