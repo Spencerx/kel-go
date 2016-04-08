@@ -31,3 +31,10 @@ func New(httpClient *http.Client, baseURL string) (*Client, error) {
 	client.ResourceGroups = &ResourceGroupService{client: client}
 	return client, nil
 }
+
+func (client *Client) makeURL(path string) *url.URL {
+	var u url.URL
+	u = *client.baseURL
+	u.Path += path
+	return &u
+}

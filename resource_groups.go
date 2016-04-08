@@ -1,17 +1,15 @@
 package kel
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 
-	"github.com/derekdowling/go-json-spec-handler"
+	"github.com/brosner/go-json-spec-handler"
 )
 
 const (
 	resourceType string = "resource-groups"
+	apiPath      string = "/resource-groups"
 )
 
 // ResourceGroupService represents the link between the ResourceGroup and the
@@ -20,114 +18,66 @@ type ResourceGroupService struct {
 	client *Client
 }
 
+func (srv *ResourceGroupService) getDetailPath(id string) string {
+	return fmt.Sprintf("%s/%s", apiPath, id)
+}
+
 // Create sends an HTTP request to create the Kel resource group.
-func (srv *ResourceGroupService) Create(resourceGroup *ResourceGroup) *ResourceGroupCreateRequest {
-	return &ResourceGroupCreateRequest{
-		srv:           srv,
-		resourceGroup: resourceGroup,
+func (srv *ResourceGroupService) Create(resourceGroup *ResourceGroup) CreateRequest {
+	return &createRequest{
+		client: srv.client,
+		path:   apiPath,
+		object: resourceGroup,
 	}
 }
 
 // CreateWithToken sends an HTTP request to create the Kel resource group
 // providing the given token.
-func (srv *ResourceGroupService) CreateWithToken(resourceGroup *ResourceGroup, token string) *ResourceGroupCreateRequest {
-	return &ResourceGroupCreateRequest{
-		srv:           srv,
-		resourceGroup: resourceGroup,
-		token:         token,
+func (srv *ResourceGroupService) CreateWithToken(resourceGroup *ResourceGroup, token string) CreateRequest {
+	req := &createRequest{
+		client: srv.client,
+		path:   apiPath,
+		hdr:    make(http.Header),
+		object: resourceGroup,
 	}
-}
-
-// ResourceGroupCreateRequest represents a request to create a reource group.
-type ResourceGroupCreateRequest struct {
-	srv           *ResourceGroupService
-	resourceGroup *ResourceGroup
-	token         string
-}
-
-// Do executes the create resource group request.
-func (req *ResourceGroupCreateRequest) Do() error {
-	var u url.URL
-	u = *req.srv.client.baseURL
-	u.Path += "/resource-groups"
-	outreq, err := http.NewRequest("POST", (&u).String(), nil)
-	if err != nil {
-		return err
-	}
-	obj, objErr := jsh.NewObject(req.resourceGroup.Name, resourceType, req.resourceGroup)
-	if objErr != nil {
-		return objErr
-	}
-	if err := obj.Validate(outreq, false); err != nil {
-		return fmt.Errorf("error preparing object: %s", err.Error())
-	}
-	doc := jsh.Build(obj)
-	docSerialized, err := json.MarshalIndent(doc, "", " ")
-	if err != nil {
-		return fmt.Errorf("error serializing document: %s", err.Error())
-	}
-	if req.token != "" {
-		outreq.Header.Set("X-Kel-Token", req.token)
-	}
-	outreq.Header.Set("Content-Type", jsh.ContentType)
-	outreq.Body = jsh.CreateReadCloser(docSerialized)
-	outreq.ContentLength = int64(len(docSerialized))
-	res, err := req.srv.client.Do(outreq)
-	if err != nil {
-		return err
-	}
-	parser := &jsh.Parser{Method: "", Headers: res.Header}
-	doc, err = parser.Document(res.Body, jsh.ObjectMode)
-	doc.Status = res.StatusCode
-	switch res.StatusCode {
-	case http.StatusBadRequest:
-		return errors.New(doc.Errors[0].Detail)
-	default:
-		return fmt.Errorf("unknown response from API: %s", res.Status)
-	}
-}
-
-// List returns all resource groups reachable by the API
-func (srv *ResourceGroupService) List() *ResourceGroupListRequest {
-	return &ResourceGroupListRequest{srv: srv}
-}
-
-// ResourceGroupListRequest represents a request for a list of resource groups.
-type ResourceGroupListRequest struct {
-	srv *ResourceGroupService
-}
-
-// Include ...
-func (req *ResourceGroupListRequest) Include() *ResourceGroupListRequest {
+	req.hdr.Set("X-Kel-Token", token)
 	return req
 }
 
-// Do ...
-func (req *ResourceGroupListRequest) Do() ([]*ResourceGroup, error) {
-	var u url.URL
-	u = *req.srv.client.baseURL
-	u.Path += "/resource-groups"
-	outreq, err := http.NewRequest("GET", (&u).String(), nil)
-	if err != nil {
-		return nil, err
+// List returns all resource groups reachable by the API
+func (srv *ResourceGroupService) List(resourceGroups *[]*ResourceGroup) ListRequest {
+	return &listRequest{
+		client: srv.client,
+		path:   apiPath,
+		handler: func(document *jsh.Document) error {
+			for i := range document.Data {
+				obj := document.Data[i]
+				resourceGroup := &ResourceGroup{srv: srv}
+				if objErr := obj.Unmarshal(resourceGroup.GetResourceType(), resourceGroup); objErr != nil {
+					return objErr
+				}
+				resourceGroup.srv = srv
+				*resourceGroups = append(*resourceGroups, resourceGroup)
+			}
+			return nil
+		},
 	}
-	outreq.Header.Set("Content-Type", jsh.ContentType)
-	res, err := req.srv.client.Do(outreq)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(res.Status)
-	return nil, nil
 }
 
 // Get returns the resource group with the given name reachable by the API
-func (srv *ResourceGroupService) Get(name string) (*ResourceGroup, error) {
-	return nil, nil
-}
-
-// ResourceGroup represents a Kel resource group.
-type ResourceGroup struct {
-	Name string `json:"name"`
+func (srv *ResourceGroupService) Get(name string, resourceGroup *ResourceGroup) GetRequest {
+	return &getRequest{
+		client: srv.client,
+		path:   srv.getDetailPath(name),
+		handler: func(document *jsh.Document) error {
+			obj := document.Data[0]
+			if objErr := obj.Unmarshal(resourceGroup.GetResourceType(), resourceGroup); objErr != nil {
+				return objErr
+			}
+			resourceGroup.srv = srv
+			return nil
+		},
+	}
 }
 
 // GetResourceType ...
@@ -142,19 +92,29 @@ func (resourceGroup *ResourceGroup) GetID() string {
 
 // Reload will get an updated resource group and point to it as its own.
 func (resourceGroup *ResourceGroup) Reload() error {
+	reloaded := &ResourceGroup{}
+	if err := resourceGroup.srv.Get(resourceGroup.GetID(), reloaded).Do(); err != nil {
+		return err
+	}
+	*resourceGroup = *reloaded
 	return nil
 }
 
 // Save will persistent local data with the API.
 func (resourceGroup *ResourceGroup) Save() error {
-	return nil
+	req := &updateRequest{
+		client: resourceGroup.srv.client,
+		path:   resourceGroup.srv.getDetailPath(resourceGroup.GetID()),
+		object: resourceGroup,
+	}
+	return req.Do()
 }
 
 // Delete will destroy the resource group.
 func (resourceGroup *ResourceGroup) Delete() error {
-	return nil
-}
-
-// ResourceGroupUser represents a Kel resource group user.
-type ResourceGroupUser struct {
+	req := &deleteRequest{
+		client: resourceGroup.srv.client,
+		path:   resourceGroup.srv.getDetailPath(resourceGroup.GetID()),
+	}
+	return req.Do()
 }
