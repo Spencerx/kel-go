@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	resourceType string = "resource-groups"
-	apiPath      string = "/resource-groups"
+	resourceGroupResourceType string = "resource-groups"
+	resourceGroupAPIPath      string = "/resource-groups"
 )
 
 // ResourceGroupService represents the link between the ResourceGroup and the
@@ -18,19 +18,15 @@ type ResourceGroupService struct {
 	client *Client
 }
 
-func (srv *ResourceGroupService) getDetailPath(id string) string {
-	return fmt.Sprintf("%s/%s", apiPath, id)
-}
-
 // Create sends an HTTP request to create the Kel resource group.
 func (srv *ResourceGroupService) Create(resourceGroup *ResourceGroup) CreateRequest {
 	return &createRequest{
 		client:   srv.client,
-		path:     apiPath,
-		buildDoc: buildDoc(resourceGroup),
+		path:     resourceGroupAPIPath,
+		buildDoc: buildResourceGroupDoc(resourceGroup),
 		handler: func(document *jsh.Document) error {
 			obj := document.Data[0]
-			if objErr := obj.Unmarshal(resourceType, resourceGroup); objErr != nil {
+			if objErr := obj.Unmarshal(resourceGroupResourceType, resourceGroup); objErr != nil {
 				return objErr
 			}
 			resourceGroup.srv = srv
@@ -44,12 +40,12 @@ func (srv *ResourceGroupService) Create(resourceGroup *ResourceGroup) CreateRequ
 func (srv *ResourceGroupService) CreateWithToken(resourceGroup *ResourceGroup, token string) CreateRequest {
 	req := &createRequest{
 		client:   srv.client,
-		path:     apiPath,
+		path:     resourceGroupAPIPath,
 		hdr:      make(http.Header),
-		buildDoc: buildDoc(resourceGroup),
+		buildDoc: buildResourceGroupDoc(resourceGroup),
 		handler: func(document *jsh.Document) error {
 			obj := document.Data[0]
-			if objErr := obj.Unmarshal(resourceType, resourceGroup); objErr != nil {
+			if objErr := obj.Unmarshal(resourceGroupResourceType, resourceGroup); objErr != nil {
 				return objErr
 			}
 			resourceGroup.srv = srv
@@ -64,7 +60,7 @@ func (srv *ResourceGroupService) CreateWithToken(resourceGroup *ResourceGroup, t
 func (srv *ResourceGroupService) List(resourceGroups *[]*ResourceGroup) ListRequest {
 	return &listRequest{
 		client: srv.client,
-		path:   apiPath,
+		path:   resourceGroupAPIPath,
 		handler: func(document *jsh.Document) error {
 			for i := range document.Data {
 				obj := document.Data[i]
@@ -81,12 +77,13 @@ func (srv *ResourceGroupService) List(resourceGroups *[]*ResourceGroup) ListRequ
 
 // Get returns the resource group with the given name reachable by the API
 func (srv *ResourceGroupService) Get(name string, resourceGroup *ResourceGroup) GetRequest {
+	resourceGroup.Name = name // ID for lookup
 	return &getRequest{
 		client: srv.client,
-		path:   srv.getDetailPath(name),
+		path:   resourceGroup.getDetailPath(),
 		handler: func(document *jsh.Document) error {
 			obj := document.Data[0]
-			if objErr := obj.Unmarshal(resourceType, resourceGroup); objErr != nil {
+			if objErr := obj.Unmarshal(resourceGroupResourceType, resourceGroup); objErr != nil {
 				return objErr
 			}
 			resourceGroup.srv = srv
@@ -95,9 +92,17 @@ func (srv *ResourceGroupService) Get(name string, resourceGroup *ResourceGroup) 
 	}
 }
 
+func (resourceGroup *ResourceGroup) getDetailPath() string {
+	return fmt.Sprintf(
+		"%s/%s",
+		resourceGroupAPIPath,
+		resourceGroup.GetID(),
+	)
+}
+
 // GetResourceType ...
 func (resourceGroup *ResourceGroup) GetResourceType() string {
-	return resourceType
+	return resourceGroupResourceType
 }
 
 // GetID ...
@@ -119,11 +124,11 @@ func (resourceGroup *ResourceGroup) Reload() error {
 func (resourceGroup *ResourceGroup) Save() error {
 	req := &updateRequest{
 		client:   resourceGroup.srv.client,
-		path:     resourceGroup.srv.getDetailPath(resourceGroup.GetID()),
-		buildDoc: buildDoc(resourceGroup),
+		path:     resourceGroup.getDetailPath(),
+		buildDoc: buildResourceGroupDoc(resourceGroup),
 		handler: func(document *jsh.Document) error {
 			obj := document.Data[0]
-			if objErr := obj.Unmarshal(resourceType, resourceGroup); objErr != nil {
+			if objErr := obj.Unmarshal(resourceGroupResourceType, resourceGroup); objErr != nil {
 				return objErr
 			}
 			return nil
@@ -136,14 +141,14 @@ func (resourceGroup *ResourceGroup) Save() error {
 func (resourceGroup *ResourceGroup) Delete() error {
 	req := &deleteRequest{
 		client: resourceGroup.srv.client,
-		path:   resourceGroup.srv.getDetailPath(resourceGroup.GetID()),
+		path:   resourceGroup.getDetailPath(),
 	}
 	return req.Do()
 }
 
-func buildDoc(resourceGroup *ResourceGroup) func(outreq *http.Request) (*jsh.Document, error) {
+func buildResourceGroupDoc(resourceGroup *ResourceGroup) func(outreq *http.Request) (*jsh.Document, error) {
 	return func(outreq *http.Request) (*jsh.Document, error) {
-		obj, objErr := jsh.NewObject(resourceGroup.GetID(), resourceType, resourceGroup)
+		obj, objErr := jsh.NewObject(resourceGroup.GetID(), resourceGroupResourceType, resourceGroup)
 		if objErr != nil {
 			return nil, objErr
 		}

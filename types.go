@@ -11,9 +11,8 @@ package kel
 
 // ResourceGroup represents a Kel resource group.
 type ResourceGroup struct {
-	Name     string `json:"name,omitempty"`
-	Personal bool   `json:"personal"`
-	Created  string `json:"created,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Created string `json:"created,omitempty"`
 
 	srv *ResourceGroupService
 }
@@ -27,6 +26,8 @@ type Site struct {
 	Name string `json:"name,omitempty"`
 
 	ResourceGroup *ResourceGroup `json:"-"`
+
+	srv *SiteService
 }
 
 // Instance represents a Kel instance.

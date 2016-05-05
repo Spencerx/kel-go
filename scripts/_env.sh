@@ -1,5 +1,7 @@
 ORG_PATH="github.com/kelproject"
 REPO_PATH="${ORG_PATH}/kel-go"
 
-export GOPATH=${PWD}/gopath
-export GO15VENDOREXPERIMENT="1"
+gopath="${PWD}/gopath"
+
+export GOPATH="$gopath"
+export PATH="$gopath/bin:${PATH}"

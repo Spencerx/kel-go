@@ -13,6 +13,7 @@ type Client struct {
 	baseURL *url.URL
 
 	ResourceGroups *ResourceGroupService
+	Sites          *SiteService
 }
 
 // New returns a Kel HTTP client to perform requests.
@@ -29,6 +30,7 @@ func New(httpClient *http.Client, baseURL string) (*Client, error) {
 		baseURL: u,
 	}
 	client.ResourceGroups = &ResourceGroupService{client: client}
+	client.Sites = &SiteService{client: client}
 	return client, nil
 }
 
