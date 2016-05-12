@@ -39,10 +39,10 @@ func (srv *SiteService) Create(site *Site) CreateRequest {
 }
 
 // List returns all sites reachable by the API
-func (srv *SiteService) List(sites *[]*Site) ListRequest {
+func (srv *SiteService) List(resourceGroup *ResourceGroup, sites *[]*Site) ListRequest {
 	return &listRequest{
 		client: srv.client,
-		path:   sitesAPIPath,
+		path:   srv.getPath(resourceGroup),
 		handler: func(document *jsh.Document) error {
 			for i := range document.Data {
 				obj := document.Data[i]
@@ -59,6 +59,7 @@ func (srv *SiteService) List(sites *[]*Site) ListRequest {
 
 // Get returns the site with the given name reachable by the API
 func (srv *SiteService) Get(name string, site *Site) GetRequest {
+	site.Name = name
 	return &getRequest{
 		client: srv.client,
 		path:   site.getDetailPath(),
